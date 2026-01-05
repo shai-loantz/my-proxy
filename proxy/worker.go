@@ -50,6 +50,8 @@ func (server *Server) handleProxyRequest(pr *proxyRequest, workerId int) {
 		newRequestURL.String(),
 		bytes.NewReader(pr.body),
 	)
+	// TODO: copy headers
 
 	server.client.Do(newRequest)
+	// TODO: handle errors and return response to original client
 }

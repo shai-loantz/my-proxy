@@ -21,12 +21,14 @@ var headersBlacklist = map[string]struct{}{
 
 func (server *Server) worker(workerId int) {
 	defer server.wg.Done()
+	log.Printf("Worker #%d started\n", workerId)
 
 	for {
 		select {
 		case pr := <-server.queue:
 			server.handleProxyRequest(pr, workerId)
 		case <-server.ctx.Done():
+			log.Printf("Worker #%d stopping\n", workerId)
 			return
 		}
 	}
@@ -39,7 +41,7 @@ func (server *Server) handleProxyRequest(pr *proxyRequest, workerId int) {
 		return
 	}
 
-	log.Printf("New request is handeled in worker #%v\n", workerId)
+	log.Printf("New request is handeled in worker #%d: %s %s\n", workerId, pr.method, pr.URLPath)
 	server.state.inflight++
 	defer server.requestDone()
 

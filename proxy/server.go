@@ -57,6 +57,7 @@ func (server *Server) ServeHTTP(responseWriter http.ResponseWriter, request *htt
 	case server.queue <- &proxyReq:
 		log.Println("Queued")
 	case <-time.After(time.Second):
+		log.Println("Timeout while queuing (queue is full)")
 		http.Error(responseWriter, "Proxy Timeout", http.StatusGatewayTimeout)
 	}
 }

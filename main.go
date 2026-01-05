@@ -8,7 +8,6 @@ import (
 
 func main() {
 	args := getArgs()
-	log.Printf("listen=%v, upstream=%v, workers=%v, queue-size=%v\n", args.listenAddress, args.upstreamURL, args.workersNum, args.queueSize)
 	config, err := proxy.NewServerConfig(
 		args.upstreamURL,
 		args.queueSize,
@@ -18,6 +17,8 @@ func main() {
 		log.Fatalln("Could not create server config.", err)
 	}
 
+	log.Printf("Starting proxy server on %s, upstream=%s, workersNum=%d, queue-size=%d\n", args.listenAddress, args.upstreamURL, args.workersNum, args.queueSize)
 	proxyServer, err := proxy.NewServer(config)
+	log.Println("Proxy server created. Serving...")
 	log.Fatalln(http.ListenAndServe(args.listenAddress, proxyServer))
 }

@@ -20,5 +20,9 @@ func main() {
 	log.Printf("Starting proxy server on %s, upstream=%s, workersNum=%d, queue-size=%d\n", args.listenAddress, args.upstreamURL, args.workersNum, args.queueSize)
 	proxyServer, err := proxy.NewServer(config)
 	log.Println("Proxy server created. Serving...")
-	log.Fatalln(http.ListenAndServe(args.listenAddress, proxyServer))
+	err = http.ListenAndServe(args.listenAddress, proxyServer)
+	if err != nil {
+		proxyServer.Shutdown()
+		log.Fatalln(err)
+	}
 }

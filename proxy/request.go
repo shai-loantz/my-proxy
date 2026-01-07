@@ -13,9 +13,10 @@ type proxyRequest struct {
 	header         http.Header
 	responseWriter http.ResponseWriter
 	ctx            context.Context
+	cancelReqCtx   context.CancelFunc
 }
 
-func NewProxyRequest(responseWriter http.ResponseWriter, req *http.Request) proxyRequest {
+func NewProxyRequest(responseWriter http.ResponseWriter, req *http.Request, reqCtx context.Context, cancelReqCtx context.CancelFunc) proxyRequest {
 	defer req.Body.Close()
 
 	body, err := io.ReadAll(req.Body)
@@ -29,6 +30,7 @@ func NewProxyRequest(responseWriter http.ResponseWriter, req *http.Request) prox
 		body:           body,
 		header:         req.Header,
 		responseWriter: responseWriter,
-		ctx:            req.Context(),
+		ctx:            reqCtx,
+		cancelReqCtx:   cancelReqCtx,
 	}
 }

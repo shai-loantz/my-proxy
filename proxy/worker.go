@@ -40,6 +40,7 @@ func (server *Server) handleProxyRequest(pr *proxyRequest, workerId int) {
 		server.state.errors++
 		return
 	}
+	defer pr.cancelReqCtx()
 
 	log.Printf("New request is handeled in worker #%d: %s %s\n", workerId, pr.method, pr.URLPath)
 	server.state.inflight++

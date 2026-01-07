@@ -1,10 +1,8 @@
 package proxy
 
 import (
-	"context"
 	"log"
 	"net/http"
-	"sync"
 	"time"
 )
 
@@ -15,36 +13,25 @@ type serverState struct {
 }
 
 type Server struct {
-	config serverConfig
-	state  *serverState
-	queue  chan *proxyRequest
-	client *http.Client
-
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     *sync.WaitGroup
+	config     serverConfig
+	state      *serverState
+	client     *http.Client
+	HttpServer *http.Server
 }
 
 func NewServer(config serverConfig) (*Server, error) {
 	state := &serverState{0, 0, 0}
 	client := &http.Client{Timeout: 60 * time.Second}
-	ctx, cancel := context.WithCancel(context.Background())
-	wg := &sync.WaitGroup{}
-	queue := make(chan *proxyRequest, config.queueSize)
-
-	server := &Server{
-		config: config,
-		state:  state,
-		queue:  queue,
-		client: client,
-		ctx:    ctx,
-		cancel: cancel,
-		wg:     wg,
+	httpServer := &http.Server{
+		Addr:    config.listenAddress,
+		Handler: nil,
 	}
 
-	server.wg.Add(int(config.workersNum))
-	for i := 0; i < int(config.workersNum); i++ {
-		go server.worker(i)
+	server := &Server{
+		config:     config,
+		state:      state,
+		client:     client,
+		HttpServer: httpServer,
 	}
 
 	return server, nil
@@ -53,32 +40,8 @@ func NewServer(config serverConfig) (*Server, error) {
 func (server *Server) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
 	log.Println("Got a new request. Parsing")
 
-	reqCtx, cancelReqCtx := context.WithCancel(server.ctx)
-	proxyReq := NewProxyRequest(responseWriter, request, reqCtx, cancelReqCtx)
-
-	// Couple between new request context and the client's original context.
-	go func() {
-		select {
-		case <-request.Context().Done():
-			cancelReqCtx()
-		case <-reqCtx.Done():
-			// Stop listening when worker is done with the request.
-		}
-	}()
-
-	select {
-	case server.queue <- &proxyReq:
-		log.Println("Queued")
-	case <-time.After(time.Second):
-		cancelReqCtx()
-		log.Println("Timeout while queuing (queue is full)")
-		http.Error(responseWriter, "Proxy Timeout", http.StatusGatewayTimeout)
-	}
-}
-
-func (server *Server) Shutdown() {
-	server.cancel()
-	server.wg.Wait()
+	proxyReq := NewProxyRequest(responseWriter, request, request.Context())
+	server.handleProxyRequest(&proxyReq)
 }
 
 func (server *Server) requestDone() {

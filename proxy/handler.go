@@ -19,30 +19,10 @@ var headersBlacklist = map[string]struct{}{
 	"Upgrade":             {},
 }
 
-func (server *Server) worker(workerId int) {
-	defer server.wg.Done()
-	log.Printf("Worker #%d started\n", workerId)
-
-	for {
-		select {
-		case pr := <-server.queue:
-			server.handleProxyRequest(pr, workerId)
-		case <-server.ctx.Done():
-			log.Printf("Worker #%d stopping\n", workerId)
-			return
-		}
-	}
-}
-
-func (server *Server) handleProxyRequest(pr *proxyRequest, workerId int) {
+func (server *Server) handleProxyRequest(pr *proxyRequest) {
 	server.state.total++
-	if pr.ctx.Err() != nil {
-		server.state.errors++
-		return
-	}
-	defer pr.cancelReqCtx()
 
-	log.Printf("New request is handeled in worker #%d: %s %s\n", workerId, pr.method, pr.URLPath)
+	log.Printf("New request is handeled: %s %s\n", pr.method, pr.URLPath)
 	server.state.inflight++
 	defer server.requestDone()
 

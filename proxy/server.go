@@ -52,11 +52,25 @@ func NewServer(config serverConfig) (*Server, error) {
 
 func (server *Server) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
 	log.Println("Got a new request. Parsing")
-	proxyReq := NewProxyRequest(responseWriter, request)
+
+	reqCtx, cancelReqCtx := context.WithCancel(server.ctx)
+	proxyReq := NewProxyRequest(responseWriter, request, reqCtx, cancelReqCtx)
+
+	// Couple between new request context and the client's original context.
+	go func() {
+		select {
+		case <-request.Context().Done():
+			cancelReqCtx()
+		case <-reqCtx.Done():
+			// Stop listening when worker is done with the request.
+		}
+	}()
+
 	select {
 	case server.queue <- &proxyReq:
 		log.Println("Queued")
 	case <-time.After(time.Second):
+		cancelReqCtx()
 		log.Println("Timeout while queuing (queue is full)")
 		http.Error(responseWriter, "Proxy Timeout", http.StatusGatewayTimeout)
 	}
